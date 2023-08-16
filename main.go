@@ -2,107 +2,136 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"net/smtp"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/robfig/cron/v3"
 )
 
 var (
-	smtpServer = os.Getenv("SMTP_SERVER")
-	smtpPort   = os.Getenv("SMTP_PORT")
-	smtpUser   = os.Getenv("SMTP_USER")
-	smtpPass   = os.Getenv("SMTP_PASS")
-	fromEmail  = os.Getenv("FROM_EMAIL")
-	toEmail    = os.Getenv("TO_EMAIL")
+	smtpServer     = os.Getenv("SMTP_SERVER")
+	smtpPort       = os.Getenv("SMTP_PORT")
+	smtpUser       = os.Getenv("SMTP_USER")
+	smtpPass       = os.Getenv("SMTP_PASS")
+	emailFrom      = os.Getenv("EMAIL_FROM")
+	emailTo        = os.Getenv("EMAIL_TO")
+	emailIfSuccess = os.Getenv("EMAIL_IF_SUCCESS")
+	jobName        = os.Getenv("JOB_NAME")
+	healthcheckURL = os.Getenv("HEALTHCHECK_URL")
+
+	taskRunning bool
 )
 
-type CmdError struct {
-	err string
-	log string
-}
-
-func (e *CmdError) Error() string {
-	return e.err + ": " + e.log
-}
-
 func main() {
-	if len(os.Args) < 3 {
-		log.Fatal("You need to provide the cron schedule and the command to run.")
+	if len(os.Args) < 2 {
+		log.Fatalf("You need to specify a cron schedule as the first argument followed by the command and its arguments.")
+		return
 	}
 
-	cronSpec := os.Args[1]
+	cronSchedule := os.Args[1]
+	cmdArgs := os.Args[2:]
 
 	c := cron.New(cron.WithSeconds())
-	c.AddFunc(cronSpec, func() {
-		err := runTask(os.Args[2:])
-		if err != nil {
-			sendEmailWithLog(err.Error())
+	_, err := c.AddFunc(cronSchedule, func() {
+		if taskRunning {
+			log.Println("Previous task is still running. Skipping the current schedule.")
+			return
 		}
+		runTask(cmdArgs)
 	})
-
+	if err != nil {
+		log.Fatalf("Failed to create cron job: %s", err)
+		return
+	}
 	c.Start()
-	select {}
+	select {} // Keep the program running
 }
 
-func runTask(commandArgs []string) error {
-	cmd := exec.Command(commandArgs[0], commandArgs[1:]...)
+func runTask(cmdArgs []string) {
+	taskRunning = true
+	log.Printf("Running task: %s", strings.Join(cmdArgs, " "))
+	defer func() { taskRunning = false }()
 
+	if healthcheckURL != "" {
+		_, err := http.Get(healthcheckURL + "/start")
+		if err != nil {
+			log.Printf("Failed to signal start to healthcheck.io: %s", err)
+		}
+	}
+
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+
+	var combinedOutput bytes.Buffer
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return err
+		log.Fatalf("Error obtaining stdout: %s", err.Error())
 	}
 
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
-		return err
+		log.Fatalf("Error obtaining stderr: %s", err.Error())
 	}
 
-	var stdoutBuf, stderrBuf bytes.Buffer
-	stdoutDone := streamCopy(&stdoutBuf, stdoutPipe, os.Stdout)
-	stderrDone := streamCopy(&stderrBuf, stderrPipe, os.Stderr)
+	go streamCopy(os.Stdout, stdoutPipe, &combinedOutput)
+	go streamCopy(os.Stderr, stderrPipe, &combinedOutput)
 
-	err = cmd.Start()
+	startTime := time.Now()
+	err = cmd.Run()
+	duration := time.Since(startTime)
+
+	outputStr := fmt.Sprintf("%s\nTask Duration: %s", combinedOutput.String(), duration)
+
 	if err != nil {
-		return err
-	}
-
-	// Wait for the copy operations to complete
-	<-stdoutDone
-	<-stderrDone
-
-	err = cmd.Wait()
-	if err != nil {
-		return &CmdError{err: err.Error(), log: "STDOUT:\n" + stdoutBuf.String() + "\n\nSTDERR:\n" + stderrBuf.String()}
-	}
-	return nil
-}
-
-func streamCopy(dst *bytes.Buffer, src io.Reader, additionalDst io.Writer) <-chan bool {
-	done := make(chan bool)
-
-	go func() {
-		defer close(done)
-
-		_, err := io.Copy(io.MultiWriter(dst, additionalDst), src)
-		if err != nil {
-			log.Println("Failed to copy stream:", err)
+		log.Printf("Task failed: %s", err)
+		outputStr = fmt.Sprintf("%s\nError: %s", outputStr, err)
+		sendEmail(fmt.Sprintf("Task Failed: %s", jobName), outputStr)
+		if healthcheckURL != "" {
+			http.Post(healthcheckURL+"/fail", "text/plain", strings.NewReader(outputStr))
 		}
-	}()
-
-	return done
+	} else {
+		log.Printf("Task succeeded in %s", duration)
+		if emailIfSuccess == "true" {
+			sendEmail(fmt.Sprintf("Task Succeeded: %s", jobName), outputStr)
+		}
+		if healthcheckURL != "" {
+			http.Post(healthcheckURL, "text/plain", strings.NewReader(outputStr))
+		}
+	}
 }
 
-func sendEmailWithLog(logContent string) {
-	body := "Subject: Task Result\r\n\r\n" + logContent
+func streamCopy(dst io.Writer, src io.Reader, buf *bytes.Buffer) {
+	buffer := make([]byte, 1024)
+	for {
+		n, err := src.Read(buffer)
+		if n > 0 {
+			dst.Write(buffer[:n])
+			buf.Write(buffer[:n])
+		}
+		if err != nil {
+			break
+		}
+	}
+}
 
-	auth := smtp.PlainAuth("", smtpUser, smtpPass, strings.Split(smtpServer, ":")[0])
-	err := smtp.SendMail(smtpServer, auth, fromEmail, []string{toEmail}, []byte(body))
+func sendEmail(subject, content string) {
+	body := "Subject: " + subject + "\r\n\r\n" + content
+
+	serverAddress := smtpServer + ":" + smtpPort
+
+	// Setup authentication
+	auth := smtp.PlainAuth("", smtpUser, smtpPass, smtpServer)
+
+	// Send the email. smtp.SendMail automatically starts a TLS session if the server supports it.
+	err := smtp.SendMail(serverAddress, auth, emailFrom, []string{emailTo}, []byte(body))
 	if err != nil {
 		log.Println("Failed to send email:", err)
 	}
 }
+
