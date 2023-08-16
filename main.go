@@ -121,6 +121,11 @@ func streamCopy(dst io.Writer, src io.Reader, buf *bytes.Buffer) {
 }
 
 func sendEmail(subject, content string) {
+
+	if smtpServer == "" || smtpPort == "" || smtpUser == "" || smtpPass == "" || emailFrom == "" || emailTo == "" {
+		return
+	}
+
 	body := "Subject: " + subject + "\r\n\r\n" + content
 
 	serverAddress := smtpServer + ":" + smtpPort
