@@ -37,11 +37,13 @@ DOWNLOAD_URL="${HOST_URL}/${FILE_NAME}"
 echo $DOWNLOAD_URL
 
 # Fetch the binary
-curl -Lo /tmp/$FILE_NAME $DOWNLOAD_URL
+HTTP_CODE=$(curl -s -w "%{http_code}" -ILo /tmp/$FILE_NAME $DOWNLOAD_URL)
 
-if [ $? -ne 0 ]; then
-    echo "Error downloading ${FILE_NAME}. Please ensure it exists on the server."
-    exit 1
+if [ "$response_code" -eq 200 ]; then
+    echo "Downloaded binary to /tmp/$FILE_NAME"
+else
+    echo "Received HTTP code: $response_code, cannot download binary"
+    exit(1)
 fi
 
 chmod +x /tmp/$FILE_NAME
