@@ -48,8 +48,18 @@ fi
 
 chmod +x /tmp/$FILE_NAME
 
-# Move to /usr/local/bin or another location in PATH
-sudo mv /tmp/$FILE_NAME /usr/local/bin/cronwrap
+# Check if sudo is needed
+MOVE_COMMAND="mv /tmp/$FILE_NAME /usr/local/bin/cronwrap"
+if [ "$(id -u)" != "0" ]; then
+    if command -v sudo > /dev/null 2>&1; then
+        MOVE_COMMAND="sudo $MOVE_COMMAND"
+    else
+        echo "Error: sudo command is not available, but is required to install the binary. Please run the script as root or install sudo."
+        exit 1
+    fi
+fi
+
+$MOVE_COMMAND
 
 if [ $? -ne 0 ]; then
     echo "Error moving ${FILE_NAME} to /usr/local/bin. Do you have the right permissions?"
