@@ -7,7 +7,7 @@ Task scheduler written in go that wraps other programs.
 ## Installation
 
 ```bash
-curl -sSL https://github.com/nicolasanjoran/cronwrap/releases/download/1.1.0/install.sh | sudo sh
+curl -sSL https://raw.githubusercontent.com/nicolasanjoran/cronwrap/main/install.sh | sudo sh
 ```
 
 ## Features
