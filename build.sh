@@ -14,3 +14,5 @@ GOOS=darwin GOARCH=amd64 go build -o $RELEASE_DIR/${BINARY_NAME}_macos_intel
 GOOS=darwin GOARCH=arm64 go build -o $RELEASE_DIR/${BINARY_NAME}_macos_arm64
 
 echo "Build complete!"
+
+

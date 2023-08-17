@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Set the host URL
-HOST_URL="https://github.com/nicolasanjoran/cronwrap/raw/main/release"
+HOST_URL="https://github.com/nicolasanjoran/cronwrap/blob/main/release/"
 
 # Detect OS and Architecture
 OS="$(uname | tr '[:upper:]' '[:lower:]')"
