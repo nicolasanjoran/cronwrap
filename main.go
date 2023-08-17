@@ -30,8 +30,56 @@ var (
 )
 
 func main() {
+	usage := `
+USAGE: cronwrap "<cron expression>" <your command here>
+
+Set the following environment variables to configure the program:
+
+1. JOB_NAME:
+	Description: Give a job a name, will be used for reporting.
+	Example: export JOB_NAME="MyJobName"
+
+2. SMTP_SERVER:
+	Description: The SMTP server for email notifications.
+	Example: export SMTP_SERVER="smtp.gmail.com"
+
+3. SMTP_PORT:
+	Description: Port number of the SMTP server.
+	Example: export SMTP_PORT="587"
+
+4. SMTP_USER:
+	Description: Your SMTP username.
+	Note: For Gmail, this is your email address.
+	Example: export SMTP_USER="youremail@gmail.com"
+
+5. SMTP_PASS:
+	Description: Your SMTP password.
+	Example: export SMTP_PASS="yourpassword"
+
+6. EMAIL_FROM:
+	Description: Email address of the sender.
+	Note: Use the same email address as SMTP_USER.
+	Example: export EMAIL_FROM="youremail@gmail.com"
+
+7. EMAIL_TO:
+	Description: Email address of the recipient to receive the report.
+	Example: export EMAIL_TO="recipientemail@gmail.com"
+
+8. EMAIL_IF_SUCCESS:
+	Description: Control whether to send a report on success.
+	Values: "true" for reports on both success and failure. By default, reports are sent only on failure.
+	Example: export EMAIL_IF_SUCCESS="true"
+
+9. HEALTHCHECK_URL:
+	Description: URL of the healthcheck.io check.
+	Note: The program will hit the /start endpoint before the task and will send the results after the process is completed or failed. This works with self-hosted instances as well.
+	Example: export HEALTHCHECK_URL="http://yourhealthcheck.io/endpoint"
+
+Ensure all necessary environment variables are set before running the program.
+	`
+	
 	if len(os.Args) < 2 {
-		log.Fatalf("USAGE: cronwrap \"<cron expression>\" <your command here>")
+		log.Fatalf(usage)
 		return
 	}
 
