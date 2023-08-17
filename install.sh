@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Set the host URL
-HOST_URL="https://github.com/nicolasanjoran/cronwrap/blob/main/release"
+HOST_URL="https://raw.githubusercontent.com/nicolasanjoran/cronwrap/main/release"
 
 # Detect OS and Architecture
 OS="$(uname | tr '[:upper:]' '[:lower:]')"
@@ -37,7 +37,7 @@ DOWNLOAD_URL="${HOST_URL}/${FILE_NAME}"
 echo $DOWNLOAD_URL
 
 # Fetch the binary
-HTTP_CODE=$(curl -s -w "%{http_code}" -ILo /tmp/$FILE_NAME $DOWNLOAD_URL)
+response_code=$(curl -sL -w "%{http_code}" -o /tmp/$FILE_NAME $DOWNLOAD_URL)
 
 if [ "$response_code" -eq 200 ]; then
     echo "Downloaded binary to /tmp/$FILE_NAME"
