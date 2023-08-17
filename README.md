@@ -6,8 +6,22 @@ Task scheduler written in go that wraps other programs.
 
 ## Installation
 
+### Using the 1-liner install script
 ```bash
 curl -sSL https://raw.githubusercontent.com/nicolasanjoran/cronwrap/main/install.sh | sudo sh
+```
+
+### Manual installation
+```bash
+git clone git@github.com:nicolasanjoran/cronwrap.git
+cd cronwrap
+
+# Optional: re-build the binary
+# sh ./build.sh
+
+# replace <binary> with your OS and architecture
+sudo cp release/<binary> /usr/local/bin/cronwrap
+sudo chmod +x /usr/local/bin/cronwrap
 ```
 
 ## Features
