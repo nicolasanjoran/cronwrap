@@ -31,7 +31,7 @@ var (
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatalf("You need to specify a cron schedule as the first argument followed by the command and its arguments.")
+		log.Fatalf("USAGE: cronwrap \"<cron expression>\" <your command here>")
 		return
 	}
 
@@ -139,4 +139,3 @@ func sendEmail(subject, content string) {
 		log.Println("Failed to send email:", err)
 	}
 }
-
