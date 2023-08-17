@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Set the host URL
-HOST_URL="https://github.com/nicolasanjoran/cronwrap/blob/main/release/"
+HOST_URL="https://github.com/nicolasanjoran/cronwrap/blob/main/release"
 
 # Detect OS and Architecture
 OS="$(uname | tr '[:upper:]' '[:lower:]')"
@@ -43,7 +43,7 @@ if [ "$response_code" -eq 200 ]; then
     echo "Downloaded binary to /tmp/$FILE_NAME"
 else
     echo "Received HTTP code: $response_code, cannot download binary"
-    exit(1)
+    exit 1
 fi
 
 chmod +x /tmp/$FILE_NAME
