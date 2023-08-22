@@ -85,6 +85,9 @@ Ensure all necessary environment variables are set before running the program.
 
 	cronSchedule := os.Args[1]
 	cmdArgs := os.Args[2:]
+	if (jobName == "") {
+		jobName = "\"" + strings.Join(cmdArgs, " ") + "\""
+	}
 
 	c := cron.New(cron.WithSeconds())
 	_, err := c.AddFunc(cronSchedule, func() {
@@ -97,8 +100,9 @@ Ensure all necessary environment variables are set before running the program.
 	if err != nil {
 		log.Fatalf("Failed to create cron job: %s", err)
 		return
-	}
+	}	
 	c.Start()
+	log.Printf("Job %s scheduled with schedule 🕰️  %s and command: %s", jobName, cronSchedule, cmdArgs)
 	select {} // Keep the program running
 }
 
